@@ -1,0 +1,178 @@
+<head>
+  <title>Kinecture</title>
+</head>
+
+<body>
+  <div class="container">
+
+    <!-- <img class="waves {{waveClass}}" src="artwork/circle-soundwaves.png" style="{{waveStyle}}">
+    <img class="icon-screen" src="artwork/circle-blue.png" style="{{blueDotStyle}}">
+    <img class="icon-screen {{greenDotClass}}" src="artwork/circle-green.png" style="{{greenDotStyle}}">
+    <img class="icon-screen {{redDotClass}}" src="artwork/circle-orange.png" style="{{redDotStyle}}">
+ -->
+
+
+    <!-- <div id="notification-target" class="note-small" style="background-color:{{notificationColor}}"></div> -->
+    <!-- <div id="spacer"></div> -->
+    <div id="trough" style="{{troughStyle}}">
+      <div id="loading-bar" class="{{barClass}}" style="{{barStyle}}"></div>
+    </div>
+    
+    {{> record}}
+
+    {{#unless recording}}
+    
+<!--     <table class="table">
+      <tr>
+        <th>timestate</th>
+        <th>loudness</th>
+        <th>loudness_scaled</th>
+        <th>silencesupport</th>
+        <th>noisesupport</th>
+        <th>waitsupport</th>
+        <th>tdiff</th>
+      </tr>
+      <tr>
+        {{notestate}}
+      </tr>
+      </table> -->
+
+    <div>Notification State: <br> {{{notestate}}}</div>
+    
+    <header>
+      <h1>Kinect Angles</h1>
+    </header>
+
+
+    {{#if showAdminPanel}}
+    <button type="button" class="btn" id="hideAdminPanel">Hide Admin Panel</button>
+    {{> controls}}
+
+ 
+
+    <table class="table">
+      <tr>
+        <th>name</th>
+        <th>left</th>
+        <th>right</th>
+        <th>dx</th>
+        <th>dy</th>
+        <th>dtheta</th>
+        <th>timestamp</th>
+        <th>angle</th>
+        <th>confidence</th>
+        <th>loudness</th>
+        <th>speech</th>
+        <th>custom_speech</th>
+        <th>silence</th>
+        <th>bins</th>
+      </tr>
+      {{#each kinects}}
+        {{> kinect}}
+      {{/each}}
+    </table>
+    {{else}}
+      <button type="button" class="btn" id="showAdminPanel">Show Admin Panel</button>
+    {{/if}}
+
+    <div>
+      Intersection: {{intersection}}<br>
+      Delay Frame: {{delayframe}}<br>
+      Delay Average: {{delayaverage}}<br>
+    </div>
+
+    {{> graph}}
+
+    {{/unless}}
+  </div>
+</body>
+
+<template name="record">
+  <form class="form-inline" role="form">
+    <div class="form-group">
+    {{#if recording}}
+      Session: {{sessionID}}
+      <button type="button" class="btn form-control" id="stop-record">Stop</button>
+    {{else}}
+      <label>Condition:
+        <select class="form-control" id="condition-select">
+          <option value="A">A</option>
+          <option value="B">B</option>
+        </select>
+      </label>
+      <label>
+        Session ID:
+        <input class="form-control" type="text" id="session-input">
+      </label>
+        <button type="button" class="btn form-control" id="start-record">Start</button>
+      {{/if}}
+    </div>
+  </form>
+
+</template>
+
+<template name="controls">
+  <form class="form-inline" role="form">
+      <button type="button" class="btn btn-danger" id="deleteEverything" style="display:none">Delete Everything</button>
+
+      <button type="button" class="btn" id="randomize">Pseudorandomize data</button>
+
+      <button type="button" class="btn" id="vibrate" styel="display:none">Vibrate device</button>
+      {{> room}}
+    </form>
+</template>
+
+<template name="kinect">
+  <tr>
+    <td>{{name}}</td>
+    <td>
+      <button type="button" class="btn setleft {{#if left}}active{{/if}}">Left</button>
+    </td>
+    <td>
+      <button type="button" class="btn setright {{#if right}}active{{/if}}">Right</button>
+    </td>
+    <td>
+      <input type="number" name="dx" value="{{dx}}" class="dx">
+    </td>
+    <td>
+      <input type="number" name="dy" value="{{dy}}" class="dy">
+    </td>
+    <td>
+      <input type="number" name="dtheta" value="{{dtheta}}" class="dtheta">
+    </td>
+    <td>{{timestamp}}</td>
+    <td>{{fixed angle}}&deg;</td>
+    <td>{{fixed confidence}}</td>
+    <td>{{fixed loudness}}</td>
+    <td>{{speech}}</td>
+    <td>{{custom_speech}}</td>
+    <td>{{silence}}</td>
+    <td>{{bins_fixed}}</td>
+  </tr>
+</template>
+
+<template name="graph">
+  <svg id="graph">
+  </svg>
+</template>
+
+<template name="room">
+  {{#with defaultRoom}}
+  <label>
+    Length
+    <input type="number" class="length" value="{{length}}">
+  </label>
+  <label>
+    Width
+    <input type="number" class="width" value="{{width}}">
+  </label>
+  <label>
+    TAzone
+    <input type="number" class="TAzone" value="{{TAzone}}">
+  </label>
+  <label>
+    Threshold
+    <input type="number" class="threshold" value="{{threshold}}">
+  </label>
+  {{/with}}
+</template>

@@ -1,0 +1,169 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Kinect;
+using Microsoft.Samples.Kinect.SpeechBasics;
+
+namespace AudioBasics_WPF
+{
+    class Recorder
+    {
+        public string Filename;
+        private readonly KinectSensor kinect;
+
+        // TODO: do we need a lock?
+        //private static object locker = new object();
+        private static bool isStopped = false;
+
+        // TODO: what to do about filename
+        public Recorder(KinectSensor kinect)
+        {
+            this.kinect = kinect;
+        }
+
+        public void Start()
+        {
+            ////Start recording audio on new thread
+            var t = new Thread(new ParameterizedThreadStart(RecordAudio));
+            t.Name = "Recorder";
+            t.Start(kinect);
+            isStopped = false;
+
+            //You can also Record audio synchronously but it will "freeze" the UI 
+            //RecordAudio(kinectSensorChooser1.Kinect); 
+        }
+
+        public void Stop()
+        {
+            isStopped = true;
+        }
+
+        private void RecordAudio(object kinectSensor)
+        {
+            KinectSensor _sensor = (KinectSensor)kinectSensor;
+            RecordAudio(_sensor);
+        }
+
+        private void RecordAudio(KinectSensor kinectSensor)
+        {
+            if (kinectSensor == null)
+            {
+                return;
+            }
+
+            byte[] buffer = new byte[1024];
+
+            using (FileStream _fileStream = new FileStream(Filename + ".wav", FileMode.Create))
+            {
+                // 100 = seconds
+                // The header has to include the size, which we don't know yet, so we'll
+                // fake it, then go back and overwrite it later (since the size is just an Int32
+                // so it takes up a constant amount of space).
+                WriteWavHeader(_fileStream, 100 * 2 * 1600);
+
+                // HACK: for some reason the normal stream doesn't work with the writer code :(
+                // (it sounds like static, and the stream is unreliable and returns 0, breaking the read loop)
+                var convertStream = new KinectAudioStream(kinectSensor.AudioSource.AudioBeams[0].OpenInputStream());
+                convertStream.SpeechActive = true;
+                //Start capturing audio      
+                int totalCount = 0;         
+                using (Stream audioStream = convertStream)
+                {
+                    Console.WriteLine("RECORDING START");
+                    //Simply copy the data from the stream down to the file
+                    int count = 0;
+                    while ((count = audioStream.Read(buffer, 0, buffer.Length)) > 0 && /* totalCount < recordingLength &&*/ !isStopped)
+                    {
+                        _fileStream.Write(buffer, 0, count);
+                        totalCount += count;
+                    }
+                    _fileStream.Flush();
+                    Console.WriteLine("RECORDING STOP");
+                }
+
+                if (_fileStream.CanSeek)
+                {
+                    _fileStream.Seek(0, SeekOrigin.Begin);
+                    // Overwrite the wav header with the actual size
+                    WriteWavHeader(_fileStream, totalCount);
+                    _fileStream.Flush();
+                }
+                else
+                {
+                    Console.WriteLine("Error: can't fix size in wav header");
+                }
+
+            }
+
+           
+        }
+
+        /// <summary>
+        /// A bare bones WAV file header writer
+        /// </summary>        
+        static void WriteWavHeader(Stream stream, int dataLength)
+        {
+            //We need to use a memory stream because the BinaryWriter will close the underlying stream when it is closed
+            using (var memStream = new MemoryStream(64))
+            {
+                int cbFormat = 18; //sizeof(WAVEFORMATEX)
+                WAVEFORMATEX format = new WAVEFORMATEX()
+                {
+                    wFormatTag = 1,
+                    nChannels = 1,
+                    nSamplesPerSec = 16000,
+                    nAvgBytesPerSec = 32000,
+                    nBlockAlign = 2,
+                    wBitsPerSample = 16,
+                    cbSize = 0
+                };
+
+                using (var bw = new BinaryWriter(memStream))
+                {
+                    //RIFF header
+                    WriteString(memStream, "RIFF");
+                    bw.Write(dataLength + cbFormat + 4); //File size - 8
+                    WriteString(memStream, "WAVE");
+                    WriteString(memStream, "fmt ");
+                    bw.Write(cbFormat);
+
+                    //WAVEFORMATEX
+                    bw.Write(format.wFormatTag);
+                    bw.Write(format.nChannels);
+                    bw.Write(format.nSamplesPerSec);
+                    bw.Write(format.nAvgBytesPerSec);
+                    bw.Write(format.nBlockAlign);
+                    bw.Write(format.wBitsPerSample);
+                    bw.Write(format.cbSize);
+
+                    //data header
+                    WriteString(memStream, "data");
+                    bw.Write(dataLength);
+                    memStream.WriteTo(stream);
+                }
+            }
+        }
+
+        static void WriteString(Stream stream, string s)
+        {
+            byte[] bytes = Encoding.ASCII.GetBytes(s);
+            stream.Write(bytes, 0, bytes.Length);
+        }
+
+        struct WAVEFORMATEX
+        {
+            public ushort wFormatTag;
+            public ushort nChannels;
+            public uint nSamplesPerSec;
+            public uint nAvgBytesPerSec;
+            public ushort nBlockAlign;
+            public ushort wBitsPerSample;
+            public ushort cbSize;
+        }
+    }
+}
